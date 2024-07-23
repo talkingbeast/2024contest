@@ -1,15 +1,7 @@
 import pandas as pd
 import streamlit as st
-import tkinter as tk
-from tkinter import filedialog
 import plotly.express as px
-import os
-from pathlib import Path
-
-# Set up tkinter
-root = tk.Tk()
-root.withdraw()
-root.wm_attributes('-topmost', 1)
+from io import BytesIO
 
 # Streamlit UI
 st.title("任务五：审计整改数据分析")
@@ -17,31 +9,27 @@ st.write('请按照要求选择汇总台账文件，然后点击“开始分析�
 
 # Initialize session state
 if 'file_path' not in st.session_state:
-    st.session_state.file_path = ""
-if 'save_folder' not in st.session_state:
-    st.session_state.save_folder = ""
+    st.session_state.file_path = None
 
-# Function to select folder
-def select_folder():
-    folder = filedialog.askdirectory(master=root)
-    if folder:
-        st.session_state.save_folder = folder
+# File uploader for selecting the summary ledger
+uploaded_file = st.file_uploader("选择汇总台账文件", type=['xlsx'])
+if uploaded_file:
+    st.session_state.file_path = uploaded_file
 
-# File picker for selecting the summary ledger
-if st.button('选择汇总台账文件'):
-    file_path = filedialog.askopenfilename(master=root, filetypes=[("Excel files", "*.xlsx")])
-    if file_path:
-        st.session_state.file_path = file_path
+# Display the selected file path
+if st.session_state.file_path:
+    st.text_input('已选择汇总台账文件:', st.session_state.file_path.name)
 
-# Display the selected file and folder paths
-st.text_input('已选择汇总台账文件:', st.session_state.file_path)
-st.text_input('选择保存文件夹:', st.session_state.save_folder)
+# Function to save DataFrame to Excel in memory
+def save_df_to_excel(df):
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='openpyxl')
+    df.to_excel(writer, index=False, sheet_name='Sheet1')
+    writer.close()
+    output.seek(0)
+    return output
 
-# Button to select folder for saving results
-if st.button('选择保存文件夹'):
-    select_folder()
-
-if st.session_state.file_path and st.session_state.save_folder:
+if st.session_state.file_path:
     if st.button('开始分析'):
         # Load data
         df = pd.read_excel(st.session_state.file_path)
@@ -71,9 +59,13 @@ if st.session_state.file_path and st.session_state.save_folder:
             grouped.reset_index(inplace=True)
 
             # Save summary to Excel
-            summary_path = Path(st.session_state.save_folder) / '审计整改汇总.xlsx'
-            grouped.to_excel(summary_path, index=False)
-            st.success(f"汇总表格已保存为: {summary_path}")
+            excel_bytes = save_df_to_excel(grouped)
+            st.download_button(
+                label="下载审计整改汇总表格",
+                data=excel_bytes,
+                file_name='审计整改汇总.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
 
             st.write(f'点击表格右上角下载按钮可直接保存为csv')
             st.dataframe(grouped)
@@ -89,13 +81,23 @@ if st.session_state.file_path and st.session_state.save_folder:
                           labels={'value': '金额（万元）', 'variable': '统计类型'})
             st.plotly_chart(fig2)
 
-            # Save all charts as HTML files
-            html_path1 = Path(st.session_state.save_folder) / '各审计来源审计整改数量统计.html'
-            html_path2 = Path(st.session_state.save_folder) / '各审计来源审计整改金额统计.html'
-            fig1.write_html(html_path1)
-            fig2.write_html(html_path2)
+            # Save charts as HTML files
+            fig1_html = fig1.to_html(full_html=False)
+            fig2_html = fig2.to_html(full_html=False)
 
-            st.success(f"图表已保存为: {html_path1} 和 {html_path2}")
+            st.download_button(
+                label="下载各审计来源审计整改数量统计图表",
+                data=fig1_html,
+                file_name='各审计来源审计整改数量统计.html',
+                mime="text/html"
+            )
+
+            st.download_button(
+                label="下载各审计来源审计整改金额统计图表",
+                data=fig2_html,
+                file_name='各审计来源审计整改金额统计.html',
+                mime="text/html"
+            )
 
 else:
-    st.info("请选择汇总台账文件和保存文件夹，然后点击 '开始分析' 按钮进行分析。")
+    st.info("请选择汇总台账文件，然后点击 '开始分析' 按钮进行分析。")

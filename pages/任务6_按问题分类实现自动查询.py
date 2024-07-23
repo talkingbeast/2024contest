@@ -1,15 +1,7 @@
 import pandas as pd
 import streamlit as st
-import tkinter as tk
-from tkinter import filedialog
 import plotly.express as px
-import os
-from pathlib import Path
-
-# Set up tkinter
-root = tk.Tk()
-root.withdraw()
-root.wm_attributes('-topmost', 1)
+from io import BytesIO
 
 # Streamlit UI
 st.title("任务6：按问题分类自动查询分析")
@@ -19,33 +11,19 @@ st.write('请先选择汇总台账文件，然后选择分组类别和问题分�
 if 'file_path' not in st.session_state:
     st.session_state.file_path = None
 
-if 'save_folder' not in st.session_state:
-    st.session_state.save_folder = ""
-
 if 'df' not in st.session_state:
     st.session_state.df = pd.DataFrame()
 
 if 'group_col' not in st.session_state:
     st.session_state.group_col = "所属责任公司"
 
-# Function to select file
-def select_file():
-    file_path = filedialog.askopenfilename(master=root, filetypes=[("Excel files", "*.xlsx")])
-    if file_path:
-        st.session_state.file_path = file_path
-        st.session_state.df = pd.read_excel(file_path)
-        non_numeric_cols = st.session_state.df.select_dtypes(exclude=['number', 'datetime']).columns
-        st.session_state.group_col = non_numeric_cols[0] if "所属责任公司" not in non_numeric_cols else "所属责任公司"
-
-# Function to select folder
-def select_folder():
-    folder = filedialog.askdirectory(master=root)
-    if folder:
-        st.session_state.save_folder = folder
-
-# File picker for selecting the summary ledger
-if st.button('选择汇总台账文件'):
-    select_file()
+# File uploader for selecting the summary ledger
+uploaded_file = st.file_uploader("选择汇总台账文件", type=['xlsx'])
+if uploaded_file:
+    st.session_state.file_path = uploaded_file
+    st.session_state.df = pd.read_excel(uploaded_file)
+    non_numeric_cols = st.session_state.df.select_dtypes(exclude=['number', 'datetime']).columns
+    st.session_state.group_col = non_numeric_cols[0] if "所属责任公司" not in non_numeric_cols else "所属责任公司"
 
 # Dropdown for group category
 if not st.session_state.df.empty:
@@ -77,14 +55,42 @@ if not st.session_state.df.empty:
         st.write(f'点击表格右上角下载按钮可直接保存为csv')
         st.dataframe(grouped)
 
-        if st.button('保存分析结果'):
-            select_folder()
-            if st.session_state.save_folder:
-                summary_path = Path(st.session_state.save_folder) / '审计整改汇总.xlsx'
-                grouped.to_excel(summary_path, index=False)
-                fig1.write_html(Path(st.session_state.save_folder) / '审计整改数量统计.html')
-                fig2.write_html(Path(st.session_state.save_folder) / '审计整改金额统计.html')
-                st.success(f"汇总表格和图表已保存至: {st.session_state.save_folder}")
+        # Save DataFrame to Excel in memory
+        def save_df_to_excel(df):
+            output = BytesIO()
+            writer = pd.ExcelWriter(output, engine='openpyxl')
+            df.to_excel(writer, index=False, sheet_name='Sheet1')
+            writer.close()
+            output.seek(0)
+            return output
+
+        if st.button('下载分析结果'):
+            # Save summary to Excel
+            excel_bytes = save_df_to_excel(grouped)
+            st.download_button(
+                label="下载审计整改汇总表格",
+                data=excel_bytes,
+                file_name='审计整改汇总.xlsx',
+                mime='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+
+            # Save charts as HTML files
+            fig1_html = fig1.to_html(full_html=False)
+            fig2_html = fig2.to_html(full_html=False)
+
+            st.download_button(
+                label="下载审计整改数量统计图表",
+                data=fig1_html,
+                file_name='审计整改数量统计.html',
+                mime="text/html"
+            )
+
+            st.download_button(
+                label="下载审计整改金额统计图表",
+                data=fig2_html,
+                file_name='审计整改金额统计.html',
+                mime="text/html"
+            )
 
 else:
     st.info("请选择汇总台账文件。")
