@@ -2,6 +2,7 @@ import os
 import pandas as pd
 from datetime import datetime
 import streamlit as st
+from io import BytesIO
 
 # 函数：读取所有上传的 xlsx 文件并将它们合并为一个 DataFrame
 def read_and_combine_xlsx_files(uploaded_files):
@@ -30,19 +31,29 @@ if uploaded_files:
     # 点击按钮开始汇总处理
     if st.button("台账汇总"):
         combined_df = read_and_combine_xlsx_files(uploaded_files)
+        
         # 重新编号序号
         if '序号' in combined_df.columns:
             combined_df['序号'] = range(1, len(combined_df) + 1)
         
         if combined_df is not None:
             current_time = datetime.now().strftime('%Y%m%d%H%M%S')
-            output_file = f'集团整体审计整改台账_{current_time}.xlsx'
+            output_file_name = f'集团整体审计整改台账_{current_time}.xlsx'
             
-            # 保存汇总文件
-            with pd.ExcelWriter(output_file) as writer:
+            # 保存汇总文件到 BytesIO
+            output = BytesIO()
+            with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
                 combined_df.to_excel(writer, sheet_name='汇总台账', index=False)
+            output.seek(0)
             
-            st.info(f'文件已保存为: {output_file}')
+            st.download_button(
+                label="下载汇总文件",
+                data=output,
+                file_name=output_file_name,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            
+            st.write(f'点击上面的按钮下载文件: {output_file_name}')
             st.write(f'点击表格右上角下载按钮可直接保存为csv')
             st.dataframe(combined_df)
 else:
