@@ -8,7 +8,7 @@ st.header('—审计整改台账分析')
 st.write('###### by 智慧能源-18503')
 st.write('---')
 
-st.sidebar.title('导航')
+# st.sidebar.title('导航')
 
 # 指定数据包文件夹路径
 data_package_folder = '数据包'
