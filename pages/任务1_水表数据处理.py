@@ -93,9 +93,9 @@ if uploaded_file is not None:
     total_usage = daily_usage['reading'].sum()
     total_smoothed_usage = daily_usage['smoothed'].sum()
     fluctuation = total_usage - total_smoothed_usage
-    st.write(f"总用水量: {total_usage:.2f} 立方米")
-    st.write(f"平滑后总用水量: {total_smoothed_usage:.2f} 立方米")
-    st.write(f"使用量波动: {fluctuation:.2f} 立方米")
+    # st.write(f"总用水量: {total_usage:.2f} 立方米")
+    # st.write(f"平滑后总用水量: {total_smoothed_usage:.2f} 立方米")
+    # st.write(f"使用量波动: {fluctuation:.2f} 立方米")
     st.write("结论: 根据分析，2楼和3楼采用了节水措施，单日用量和汇总用量均明显下降。一楼需要借鉴并针对性的采取节水措施。")
 
     # 数据下载
